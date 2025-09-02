@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import {User} from "../models/userSchema"; 
+import sign from "../utils/jwt/sign";
+import sendmail from "../utils/mailer/passwordReset";
 
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
@@ -30,11 +32,7 @@ export const signUp = async (req: Request, res: Response) => {
             Image_url,
         });
 
-        const token = jwt.sign(
-            { sub: user._id, role: "user" },
-            JWT_SECRET,
-            { expiresIn: "1h" }
-        );
+        const token = sign({ sub: user._id, role: "user" });
 
         return res.status(201).json({ token });
     } catch (err: any) {
@@ -76,20 +74,7 @@ export const passwordResetLink = async (req: Request, res: Response) => {
         }
 
         // Setup transport (example using Gmail SMTP)
-        const transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-                user: process.env.MAIL_USER,
-                pass: process.env.MAIL_PASS,
-            },
-        });
-
-        await transporter.sendMail({
-            from: process.env.MAIL_USER,
-            to: email,
-            subject: "Password Reset",
-            text: `Reset your password: http://your-app.com/reset/${user._id}`,
-        });
+        sendmail(user.email,user.id);
 
         return res.json({
             message: "If the account exists, a reset link was sent",

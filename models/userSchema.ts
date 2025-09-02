@@ -8,6 +8,7 @@ export interface IUser extends Document {
     tier: "free" | "premium";
     createdAt?: Date;
     updatedAt?: Date;
+    UserImage?: string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -17,6 +18,7 @@ const userSchema = new Schema<IUser>(
         password: { type: String, required: true },
         role: { type: String, enum: ["user", "admine"], default: "user" },
         tier: { type: String, enum: ["free", "premium"], default: "free" },
+        UserImage: { type: String, required: false, default:"https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png" },
     },
     { timestamps: true }
 );
