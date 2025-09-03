@@ -8,10 +8,12 @@ import {
     deleteProduct,
     searchProducts,
     productsWithUser,
+    scrapProduct,
 } from "../controllers/productController";
 
 const productRout = express.Router();
 
+productRout.post("/scrap",scrapProduct );
 productRout.post("/add", addProduct);
 productRout.get("/all", allProducts);
 productRout.get("/total", totalProducts);
