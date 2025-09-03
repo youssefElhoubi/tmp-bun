@@ -1,8 +1,28 @@
 import { Request, Response } from "express";
-
 import { Product } from "../models/produtSchema";
 import { ProductHistory } from "../models/productHestorySchema";
 import comparePrice from "../utils/compairePrices/compairer";
+import scrapeWebsite from "../utils/scrapers/scraper";
+
+
+// scrape product
+
+export const scrapProduct = async (req:Request,res:Response) => {
+    try {
+        const {url} =  req.body;
+        if (!url) {
+            return res.status(400).json({message:"there is no url "});
+        }
+        const productInfo = await scrapeWebsite(url);
+        return res.status(productInfo.code).json({success:productInfo.success,data:productInfo.data});
+    } catch (error:any) {
+        return res.status(500).json({
+            success: false,
+            error: "An error occurred while adding the product",
+            details: error.message,
+        });
+    }
+}
 
 // ✅ Add new product
 export const addProduct = async (req: Request, res: Response) => {
