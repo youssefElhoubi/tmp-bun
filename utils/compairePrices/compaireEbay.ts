@@ -1,17 +1,16 @@
-import Puppeteer from "puppeteer-extra";
+import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
-Puppeteer.use(StealthPlugin());
+puppeteer.use(StealthPlugin());
 
-const compareEbay = async (title) => {
-    const browser = await Puppeteer.launch({
-        headless: true, // this line only for debuging if the data is not scraped 
+const compareEbay = async (title: string) => {
+    const browser = await puppeteer.launch({
+        headless: true, // change to false for debugging
         args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-blink-features=AutomationControlled",
-            // "--proxy-server=38.154.227.167:5868",
-        ]
+        ],
     });
 
     try {
@@ -38,55 +37,66 @@ const compareEbay = async (title) => {
             "Pragma": "no-cache",
         });
 
-        // Authenticate if proxy requires credentials
-        // await page.authenticate({
-        //     username: "cptjffkd",
-        //     password: "f0i56dktc42r", 
-        // });
-
         // Open eBay
-        await page.goto("https://www.ebay.com", { waitUntil: "networkidle2", timeout: 90000 });
+        await page.goto("https://www.ebay.com", {
+            waitUntil: "networkidle2",
+            timeout: 90_000,
+        });
 
         // Perform search
-        await page.locator("#gh-ac").fill(title);
-        await page.locator("#gh-search-btn").click();
+        await page.type("#gh-ac", title);
+        await page.click("#gh-search-btn");
         await page.waitForSelector(".srp-river-results.clearfix");
 
         // Scrape product data with error handling
-        let productTitle, productImage, productPrice;
+        let productTitle: string;
+        let productImage: string;
+        let productPrice: string;
 
         try {
-            productTitle = await page.$eval("ul>li.s-item.s-item__pl-on-bottom .s-item__title", (el) => el.innerText.trim());
+            productTitle = await page.$eval(
+                "ul>li.s-item.s-item__pl-on-bottom .s-item__title",
+                (el) => el.textContent?.trim() || ""
+            );
         } catch {
-            return JSON.stringify({ error: "Product title is missing", code: 404 });
+            return { error: "Product title is missing", code: 404 };
         }
 
         try {
-            productImage = await page.$eval("ul>li.s-item.s-item__pl-on-bottom img", (el) => el.src);
+            productImage = await page.$eval(
+                "ul>li.s-item.s-item__pl-on-bottom img",
+                (el: HTMLImageElement) => el.src
+            );
         } catch {
-            return JSON.stringify({ error: "Product image is missing", code: 404 });
+            return { error: "Product image is missing", code: 404 };
         }
 
         try {
-            productPrice = await page.$eval("ul>li.s-item.s-item__pl-on-bottom .s-item__price", (el) => el.innerText.split("$")[1].trim());
+            productPrice = await page.$eval(
+                "ul>li.s-item.s-item__pl-on-bottom .s-item__price",
+                (el) => (el.textContent || "").split("$")[1]?.trim() || ""
+            );
         } catch {
-            return JSON.stringify({ error: "Product price is missing", code: 404 });
+            return { error: "Product price is missing", code: 404 };
         }
 
         // Format response
-        const productInfo = {
+        return {
             success: true,
             code: 200,
-            data: { productTitle, productImage, price: productPrice, platformName: "eBay" }
+            data: {
+                productTitle,
+                productImage,
+                price: productPrice,
+                platformName: "eBay",
+            },
         };
 
-        return JSON.stringify(productInfo);
-
-    } catch (error) {
-        return JSON.stringify({ error: error.message, code: 500 });
+    } catch (error: any) {
+        return { error: error.message, code: 500 };
     } finally {
-        if (browser) await browser.close();
+        await browser.close();
     }
 };
-// compareEbay(process.argv[2]);
+
 export default compareEbay;

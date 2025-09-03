@@ -1,16 +1,16 @@
-import Puppeteer from "puppeteer-extra";
+import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
-Puppeteer.use(StealthPlugin());
+puppeteer.use(StealthPlugin());
 
-const compareNewEgg = async (title) => {
-    const browser = await Puppeteer.launch({
-        headless: true, // this line only for debuging if the data is not scraped 
+const compareNewEgg = async (title: string) => {
+    const browser = await puppeteer.launch({
+        headless: true, // set to false for debugging
         args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
-            "--disable-blink-features=AutomationControlled"
-        ]
+            "--disable-blink-features=AutomationControlled",
+        ],
     });
 
     try {
@@ -38,55 +38,69 @@ const compareNewEgg = async (title) => {
         });
 
         // Navigate to Newegg
-        await page.goto("https://www.newegg.com", { waitUntil: "networkidle2", timeout: 90000 });
+        await page.goto("https://www.newegg.com", {
+            waitUntil: "networkidle2",
+            timeout: 90_000,
+        });
 
-        // Perform search
-        await page.locator(".header2021-search-box input").fill(title);
-        await page.locator(".ico.ico-search").click();
+        // Perform search (fixed: Puppeteer syntax)
+        await page.type(".header2021-search-box input", title);
+        await page.click(".ico.ico-search");
         await page.waitForSelector(".item-cell .item-container .item-info .item-title");
 
         // Scrape product data with error handling
-        let productTitle, productImage, productPrice;
+        let productTitle: string;
+        let productImage: string;
+        let productPrice: string;
 
         try {
-            productTitle = await page.$eval(".item-cell .item-container .item-info .item-title", el => el.innerText.trim());
+            productTitle = await page.$eval(
+                ".item-cell .item-container .item-info .item-title",
+                (el) => el.textContent?.trim() || ""
+            );
         } catch {
-            console.error("❌ Product title not found.");
-            return JSON.stringify({ error: "Product title is missing", code: 404 });
+            return { error: "Product title is missing", code: 404 };
         }
 
         try {
-            productImage = await page.$eval(".item-cell .item-container .item-img img", el => el.src);
+            productImage = await page.$eval(
+                ".item-cell .item-container .item-img img",
+                (el: HTMLImageElement) => el.src
+            );
         } catch {
-            console.error("❌ Product image not found.");
-            return JSON.stringify({ error: "Product image is missing", code: 404 });
+            return { error: "Product image is missing", code: 404 };
         }
 
         try {
-            const priceWhole = await page.$eval(".item-cell .item-container .price .price-current strong", el => el.innerText.trim());
-            const priceFraction = await page.$eval(".item-cell .item-container .price .price-current sup", el => el.innerText.trim());
-            productPrice = priceWhole + "." + priceFraction;
+            const priceWhole = await page.$eval(
+                ".item-cell .item-container .price .price-current strong",
+                (el) => el.textContent?.trim() || ""
+            );
+            const priceFraction = await page.$eval(
+                ".item-cell .item-container .price .price-current sup",
+                (el) => el.textContent?.trim() || "00"
+            );
+            productPrice = `${priceWhole}.${priceFraction}`;
         } catch {
-            console.error("❌ Product price not found.");
-            return JSON.stringify({ error: "Product price is missing", code: 404 });
+            return { error: "Product price is missing", code: 404 };
         }
 
         // Format response
-        const productInfo = {
+        return {
             success: true,
             code: 200,
-            data: { productTitle, productImage, price: productPrice, platformName: "Newegg" }
+            data: {
+                productTitle,
+                productImage,
+                price: productPrice,
+                platformName: "Newegg",
+            },
         };
-
-        return JSON.stringify(productInfo);
-    } catch (error) {
-        console.error("❌ Scraping Error:", error.message);
-        return JSON.stringify({ error: error.message, code: 500 });
+    } catch (error: any) {
+        return { error: error.message, code: 500 };
     } finally {
-        if (browser) await browser.close();
+        await browser.close();
     }
 };
-
-// compareNewEgg(process.argv[2]);
 
 export default compareNewEgg;

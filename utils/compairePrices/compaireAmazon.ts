@@ -1,34 +1,49 @@
-import Puppeteer from "puppeteer-extra";
+import { Browser, Page } from "puppeteer";
+import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
-Puppeteer.use(StealthPlugin());
+puppeteer.use(StealthPlugin());
 
-const compareAmazon = async (title) => {
-    const browser = await Puppeteer.launch({
-        headless: true, // this line only for debuging if the data is not scraped 
-        args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-blink-features=AutomationControlled",
-            "--proxy-server=38.154.227.167:5868"
-        ]
-    });
+interface ProductInfo {
+    success: boolean;
+    code: number;
+    data?: {
+        productTitle: string;
+        productImage: string;
+        price: string;
+        platformName: string;
+    };
+    error?: string;
+}
+
+const compareAmazon = async (title: string): Promise<ProductInfo> => {
+    let browser: Browser | null = null;
 
     try {
-        const page = await browser.newPage();
+        browser = await puppeteer.launch({
+            headless: true, // set false if debugging
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-blink-features=AutomationControlled",
+                "--proxy-server=38.154.227.167:5868"
+            ]
+        });
 
-        // Authenticate if proxy requires credentials
+        const page: Page = await browser.newPage();
+
+        // Proxy authentication
         await page.authenticate({
             username: "cptjffkd",
             password: "f0i56dktc42r",
         });
 
-        // Set a realistic User-Agent
+        // Realistic User-Agent
         await page.setUserAgent(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
         );
 
-        // Set extra headers to avoid bot detection
+        // Extra headers
         await page.setExtraHTTPHeaders({
             "Accept-Language": "en-US,en;q=0.9",
             "Referer": "https://www.google.com/",
@@ -45,49 +60,43 @@ const compareAmazon = async (title) => {
         });
 
         // Navigate to Amazon
-        await page.goto("https://www.amazon.com/", { waitUntil: "networkidle2", timeout: 90000 });
+        await page.goto("https://www.amazon.com/", {
+            waitUntil: "networkidle2",
+            timeout: 90000,
+        });
 
-        // Perform search
+        // Search for the product
         await page.locator("#twotabsearchtextbox").fill(title);
         await page.locator("#nav-search-submit-button").click();
         await page.waitForSelector("[data-cy='title-recipe'] h2 span", { timeout: 10000 });
 
-        // Scrape product data with error handling
-        let productTitle, productImage, productPrice;
+        // Scrape data
+        const productTitle: string = await page.$eval(
+            "[data-cy='title-recipe'] h2 span",
+            (el) => (el as HTMLElement).innerText.trim()
+        );
 
-        try {
-            productTitle = await page.$eval("[data-cy='title-recipe'] h2 span", el => el.innerText.trim());
-        } catch {
-            return JSON.stringify({ error: "Product title is missing", code: 404 });
-        }
+        const productImage: string = await page.$eval(
+            ".s-image",
+            (el) => (el as HTMLImageElement).src
+        );
 
-        try {
-            productImage = await page.$eval(".s-image", el => el.src);
-        } catch {
-            return JSON.stringify({ error: "Product image is missing", code: 404 });
-        }
+        const productPrice: string = await page.$eval(
+            ".a-price .a-offscreen",
+            (el) => (el as HTMLElement).innerText.trim()
+        );
 
-        try {
-            productPrice = await page.$eval(".a-price .a-offscreen", el => el.innerText.trim());
-        } catch {
-            return JSON.stringify({ error: "Product price is missing", code: 404 });
-        }
-
-        // Format response
-        const productInfo = {
+        return {
             success: true,
             code: 200,
             data: { productTitle, productImage, price: productPrice, platformName: "Amazon" }
         };
-
-        return JSON.stringify(productInfo);
-    } catch (error) {
-        return JSON.stringify({ error: error.message, code: 500 });
+    } catch (error: any) {
+        return { success: false, code: 500, error: error.message };
     } finally {
         if (browser) await browser.close();
     }
 };
 
-// compareAmazon(process.argv[2]);
 
 export default compareAmazon;
