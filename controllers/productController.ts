@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 
 import { Product } from "../models/produtSchema";
 import { ProductHistory } from "../models/productHestorySchema";
+import comparePrice from "../utils/compairePrices/compairer";
 
 // ✅ Add new product
 export const addProduct = async (req: Request, res: Response) => {
@@ -101,28 +102,28 @@ export const myProducts = async (req: Request, res: Response) => {
 };
 
 // ✅ Product details with history & compare
-// export const productInfo = async (req: Request, res: Response) => {
-//   try {
-//     const { id } = req.params;
-//     const product = await Product.findById(id).populate("history");
+export const productInfo = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const product = await Product.findById(id).populate("history");
 
-//     if (!product) {
-//       return res.status(404).json({ success: false, message: "Product not found" });
-//     }
+        if (!product) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
 
-//     const comparedProducts = await compareService.compare(product.name, product.platformName);
+        const comparedProducts = await comparePrice(product.name, product.platformName);
 
-//     return res.json({
-//       success: true,
-//       message: "Product retrieved successfully",
-//       data: product,
-//       history: product.history,
-//       comparedProducts,
-//     });
-//   } catch (err: any) {
-//     return res.status(500).json({ success: false, error: err.message });
-//   }
-// };
+        return res.json({
+            success: true,
+            message: "Product retrieved successfully",
+            data: product,
+            history: product.populate("history"),
+            comparedProducts,
+        });
+    } catch (err: any) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+};
 
 // ✅ Delete product
 export const deleteProduct = async (req: Request, res: Response) => {
