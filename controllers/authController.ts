@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import nodemailer from "nodemailer";
 import {User} from "../models/userSchema"; 
 import sign from "../utils/jwt/sign";
 import sendmail from "../utils/mailer/passwordReset";

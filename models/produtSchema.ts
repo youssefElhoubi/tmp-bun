@@ -3,7 +3,7 @@ import { Schema, model, Document, Types } from "mongoose";
 export interface IProduct extends Document {
     url: string;
     name: string;
-    curentPrice: string; // keeping as string like in migration
+    curentPrice: string;
     platformName: string;
     productImage: string;
     user: Types.ObjectId;
@@ -22,5 +22,15 @@ const productSchema = new Schema<IProduct>(
     },
     { timestamps: true }
 );
+
+// ✅ Virtual relation with ProductHistory
+productSchema.virtual("history", {
+    ref: "ProductHistory", // model name
+    localField: "_id", // Product._id
+    foreignField: "product", // ProductHistory.product
+});
+
+productSchema.set("toObject", { virtuals: true });
+productSchema.set("toJSON", { virtuals: true });
 
 export const Product = model<IProduct>("Product", productSchema);
