@@ -3,7 +3,19 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 puppeteer.use(StealthPlugin());
 
-const compareEbay = async (title: string) => {
+interface ProductInfo {
+    success: boolean;
+    code: number;
+    data?: {
+        productTitle: string;
+        productImage: string;
+        price: string;
+        platformName: string;
+    };
+    error?: string;
+}
+
+const compareEbay = async (title: string): Promise<ProductInfo> => {
     const browser = await puppeteer.launch({
         headless: true, // change to false for debugging
         args: [
@@ -59,7 +71,7 @@ const compareEbay = async (title: string) => {
                 (el) => el.textContent?.trim() || ""
             );
         } catch {
-            return { error: "Product title is missing", code: 404 };
+            return { success: false, error: "Product title is missing", code: 404 };
         }
 
         try {
@@ -68,7 +80,7 @@ const compareEbay = async (title: string) => {
                 (el: HTMLImageElement) => el.src
             );
         } catch {
-            return { error: "Product image is missing", code: 404 };
+            return { success: false, error: "Product image is missing", code: 404 };
         }
 
         try {
@@ -77,7 +89,7 @@ const compareEbay = async (title: string) => {
                 (el) => (el.textContent || "").split("$")[1]?.trim() || ""
             );
         } catch {
-            return { error: "Product price is missing", code: 404 };
+            return { success: false, error: "Product price is missing", code: 404 };
         }
 
         // Format response
@@ -93,7 +105,7 @@ const compareEbay = async (title: string) => {
         };
 
     } catch (error: any) {
-        return { error: error.message, code: 500 };
+        return { success: false, error: error.message, code: 500 };
     } finally {
         await browser.close();
     }

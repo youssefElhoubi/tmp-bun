@@ -2,8 +2,19 @@ import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 puppeteer.use(StealthPlugin());
+interface ProductInfo {
+    success: boolean;
+    code: number;
+    data?: {
+        productTitle: string;
+        productImage: string;
+        price: string;
+        platformName: string;
+    };
+    error?: string;
+}
 
-const compareNewEgg = async (title: string) => {
+const compareNewEgg = async (title: string): Promise<ProductInfo> => {
     const browser = await puppeteer.launch({
         headless: true, // set to false for debugging
         args: [
@@ -59,7 +70,7 @@ const compareNewEgg = async (title: string) => {
                 (el) => el.textContent?.trim() || ""
             );
         } catch {
-            return { error: "Product title is missing", code: 404 };
+            return { success: false, error: "Product title is missing", code: 404 };
         }
 
         try {
@@ -68,7 +79,7 @@ const compareNewEgg = async (title: string) => {
                 (el: HTMLImageElement) => el.src
             );
         } catch {
-            return { error: "Product image is missing", code: 404 };
+            return { success: false, error: "Product image is missing", code: 404 };
         }
 
         try {
@@ -82,7 +93,7 @@ const compareNewEgg = async (title: string) => {
             );
             productPrice = `${priceWhole}.${priceFraction}`;
         } catch {
-            return { error: "Product price is missing", code: 404 };
+            return { success: false, error: "Product price is missing", code: 404 };
         }
 
         // Format response
@@ -97,7 +108,7 @@ const compareNewEgg = async (title: string) => {
             },
         };
     } catch (error: any) {
-        return { error: error.message, code: 500 };
+        return { success: false, error: error.message, code: 500 };
     } finally {
         await browser.close();
     }
